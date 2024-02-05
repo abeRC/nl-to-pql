@@ -1,0 +1,94 @@
+Query ID,Type,English,PQL (reference)
+-1,,"Given a request in natural language, construct the corresponding Celonis PQL query. The event log table will always be named ""log"", and the columns in it are as follows: ""Case ID"", ""concept:name"" (the activity column), ""time:timestamp"", ""org:resource"", ""org:role"", ""id"" (internal code). The case table is named ""log_CASES"" and contains one column named ""Case ID"".",
+0,3,Calculate the time (in minutes) between events for each case.,"TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+SOURCE(""log"".""concept:name"") AS ""Source activity"",
+TARGET(""log"".""concept:name"") AS ""Target activity"",
+MINUTES_BETWEEN ( SOURCE(""log"".""time:timestamp""),
+TARGET(""log"".""time:timestamp"") ) AS ""Time""
+);"
+1,3,Count the number of events in cases where the activity 'Declaration REJECTED by SUPERVISOR' was executed at least once.,"FILTER SOURCE(""log"".""concept:name"") = 'Declaration REJECTED by SUPERVISOR'
+OR TARGET(""log"".""concept:name"") = 'Declaration REJECTED by SUPERVISOR';
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+COUNT(""log"".""concept:name"") AS ""Count""
+);"
+2,3,Count the number of events in cases where the activity 'Declaration REJECTED by SUPERVISOR' wasn't executed.,"FILTER SOURCE(""log"".""concept:name"") != 'Declaration REJECTED by SUPERVISOR'
+AND TARGET(""log"".""concept:name"") != 'Declaration REJECTED by SUPERVISOR';
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+COUNT(""log"".""concept:name"") AS ""Count""
+);"
+3,1,"For each case, count the number of events handled by the role 'PRE_APPROVER'.","FILTER ""log"".""org:role"" = 'PRE_APPROVER';
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+COUNT(""log"".""org:role"")  AS ""Count""
+);"
+4,2,What is the last activity in each case?,"FILTER ""log"".""time:timestamp"" >= PU_MAX(""log_CASES"", ""log"".""time:timestamp"" );
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+""log"".""concept:name""  AS ""Last activity""
+);"
+5,2,What is the first activity in each case?,"FILTER ""log"".""time:timestamp"" <= PU_MIN(""log_CASES"", ""log"".""time:timestamp"" );
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+""log"".""concept:name""  AS ""First activity""
+);"
+6,1,Count the number of events in each case.,"TABLE (
+""log_CASES"".""Case Id""  AS ""Case ID"",
+COUNT(""log"".""concept:name"")  AS ""Count""
+);"
+7,3,"List the case ID, activity name and role of all events that happened at the same time as another event in the same case.","FILTER MINUTES_BETWEEN(
+SOURCE(""log"".""time:timestamp""),
+TARGET(""log"".""time:timestamp"") ) = 0;
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+SOURCE(""log"".""concept:name"") AS ""Source activity"",
+SOURCE(""log"".""org:role"") AS ""Source role"",
+TARGET(""log"".""concept:name"") AS ""Target activity"",
+TARGET(""log"".""org:role"") AS ""Target role""
+);"
+8,3,Count the number of occurrences of 'Declaration APPROVED by ADMINISTRATION' directly followed by 'Declaration REJECTED by SUPERVISOR' in cases where this occurs.,"FILTER SOURCE(""log"".""concept:name"") = 'Declaration APPROVED by ADMINISTRATION'
+AND TARGET(""log"".""concept:name"") = 'Declaration REJECTED by SUPERVISOR';
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+COUNT(SOURCE(""log"".""concept:name""))  AS ""Count""
+);"
+9,3,"List the case ID, activity name, timestamp and internal code of 'Declaration APPROVED by ADMINISTRATION' and 'Declaration REJECTED by SUPERVISOR' events in cases where the former is directly followed by the latter at least once. ","FILTER SOURCE(""log"".""concept:name"") = 'Declaration APPROVED by ADMINISTRATION'
+AND TARGET(""log"".""concept:name"") = 'Declaration REJECTED by SUPERVISOR';
+FILTER ""log"".""concept:name"" = 'Declaration APPROVED by ADMINISTRATION'
+OR ""log"".""concept:name"" = 'Declaration REJECTED by SUPERVISOR';
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+""log"".""concept:name""  AS ""Activity"",
+""log"".""time:timestamp""  AS ""Time"",
+""log"".""id""  AS ""Internal code""
+);"
+10,3,Count the number of occurrences of 'Declaration APPROVED by ADMINISTRATION' directly followed by 'Declaration REJECTED by SUPERVISOR' in cases where this occurs more than once.,"FILTER SOURCE(""log"".""concept:name"") = 'Declaration APPROVED by ADMINISTRATION'
+AND TARGET(""log"".""concept:name"") = 'Declaration REJECTED by SUPERVISOR';
+FILTER PU_COUNT(
+""log_CASES"",
+SOURCE(""log"".""concept:name""),
+SOURCE(""log"".""concept:name"") = 'Declaration APPROVED by ADMINISTRATION'
+AND TARGET(""log"".""concept:name"") = 'Declaration REJECTED by SUPERVISOR'
+) > 1;
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+COUNT(SOURCE(""log"".""concept:name""))  AS ""Count""
+);"
+11,2,"Find all cases where 'Declaration REJECTED by ADMINISTRATION' happens more than twice. Show the case ID, activity name and timestamp for events related to the activities 'Declaration REJECTED by ADMINISTRATION' or 'Declaration APPROVED by ADMINISTRATION' inside these cases.","FILTER ""log"".""concept:name"" = 'Declaration REJECTED by ADMINISTRATION'
+OR ""log"".""concept:name"" = 'Declaration APPROVED by ADMINISTRATION';
+FILTER PU_COUNT(""log_CASES"", ""log"".""concept:name"", ""log"".""concept:name"" = 'Declaration REJECTED by ADMINISTRATION') > 2;
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+""log"".""concept:name""  AS ""Activity"",
+""log"".""time:timestamp""  AS ""Timestamp""
+);"
+12,2,"Calculate the total number of 'Permit REJECTED by EMPLOYEE' and 'Declaration REJECTED by EMPLOYEE' events for each case. Show both counts, but only for cases where the first and second counts total four or more.","FILTER PU_COUNT(""log_CASES"", ""log"".""concept:name"", ""log"".""concept:name"" = 'Declaration REJECTED by EMPLOYEE')
++ PU_COUNT(""log_CASES"", ""log"".""concept:name"", ""log"".""concept:name"" = 'Permit REJECTED by EMPLOYEE')
+> 3;
+TABLE (
+""log_CASES"".""Case ID""  AS ""Case ID"",
+PU_COUNT(""log_CASES"", ""log"".""concept:name"", ""log"".""concept:name"" = 'Permit REJECTED by EMPLOYEE')  AS ""Permit REJECTED count"",
+PU_COUNT(""log_CASES"", ""log"".""concept:name"", ""log"".""concept:name"" = 'Declaration REJECTED by EMPLOYEE')  AS ""Declaration REJECTED count""
+);"
